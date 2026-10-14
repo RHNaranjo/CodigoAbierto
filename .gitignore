@@ -33,3 +33,9 @@ nbproject/private/
 
 # macOS
 .DS_Store
+
+# Respaldos de NetBeans
+*~
+
+# Configuración local con secretos
+campus.properties
