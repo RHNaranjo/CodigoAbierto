@@ -20,15 +20,34 @@ Para usar *Java with Ant* y seguir el estilo de los proyectos de NetBeans (Proce
 - Wazuh manager con al menos un agente
 - OpenLDAP de laboratorio
 
-## Configuración
+## Cómo correrlo
 
-Copiar `campus.properties.example` a `~/CampusSeguro/campus.properties` y llenar los datos de la API de Wazuh. Ese archivo no se sube a GitHub; las variables de entorno con el mismo nombre tienen prioridad.
+1. **Abrir el proyecto** en NetBeans (File → Open Project → carpeta `CodigoAbierto`). Si pide servidor, elegir Tomcat 11.
+2. **Crear un usuario de la API de Wazuh.** En el dashboard: ☰ → Server management → Security → Users → Create user, con el rol `readonly`. El usuario `admin` del dashboard no sirve para la API.
+3. **Crear la configuración** (no se sube a GitHub):
 
-## Ejecutar
+   ```bash
+   mkdir -p ~/CampusSeguro
+   cp campus.properties.example ~/CampusSeguro/campus.properties
+   ```
 
-Abrir el proyecto en NetBeans y ejecutar (Run). Se abre http://localhost:8080/CampusSeguro.
+   Editar `~/CampusSeguro/campus.properties` con la URL (puerto 55000), usuario y contraseña. Las variables de entorno con el mismo nombre tienen prioridad.
+4. **Ejecutar**: clic derecho en el proyecto → Run. Se abre http://localhost:8080/CampusSeguro. La configuración solo se lee al arrancar: si se cambia, volver a ejecutar.
+5. **Comprobar** en el navegador:
+   - `/api/estado`: la base responde (crea `~/CampusSeguro/campusseguro.mv.db`).
+   - `/api/edificios`: los tres edificios.
+   - `/api/agentes`: los agentes de Wazuh (aparecen tras la primera sincronización, unos segundos; `desactualizado: true` indica que Wazuh no respondió).
+6. **Asignar edificios** a los agentes (ver Endpoints).
 
-- La base H2 se guarda en `~/CampusSeguro/` (cambiar con `-Dcampus.db=ruta`).
+Sin `WAZUH_API_URL` la app arranca, pero no sincroniza agentes (se avisa en la consola de Tomcat).
+
+### Pruebas
+
+Clic derecho en el proyecto → Test (JUnit).
+
+### Notas
+
+- La base H2 está en `~/CampusSeguro/` (cambiar con `-Dcampus.db=ruta`).
 - Las bibliotecas están en `lib/`.
 - Los certificados de Wazuh no se validan (`TrustAllSSLSocketFactory`); solo para laboratorio.
 
