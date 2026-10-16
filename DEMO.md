@@ -1,28 +1,49 @@
 # Demo de CampusSeguro
 
-Formato: **presentación de Slides (6 diapositivas, 5 a 6 min) y después el dashboard en vivo (4 a 5 min)**. El profesor y el equipo no ven código ni terminal; el código solo aparece en la diapositiva 3. Mientras se muestra el dashboard, una terminal de fondo manda alertas simuladas y se ve cómo cambia la pantalla.
+Formato: **presentación de Slides (6 diapositivas, 5 a 6 min) y después el dashboard en vivo (4 a 5 min)**. El profesor y el equipo no ven código ni terminal; el código solo aparece en la diapositiva 3. El dashboard no arranca vacío: antes se precarga un día de actividad simulada. Mientras se muestra, una terminal de fondo manda alertas nuevas y se ve cómo cambia la pantalla.
 
 ## Antes de la presentación (nadie mira)
 
-1. **Empezar de cero** (si ya se ensayó, para que el mapa esté limpio):
-   ```bash
-   ./stop
-   rm ~/CampusSeguro/campusseguro.mv.db
-   ./start
-   ```
-   Los equipos de Wazuh vuelven a cargarse solos en unos segundos.
-2. **Elegir tres equipos con nombre neutro.** Sus nombres salen en el dashboard, y algunos equipos reales llevan nombres de personas:
-   ```bash
-   ./simular
-   ```
-   Lista los equipos activos. Anotar tres ids (por ejemplo `A-29`, `B-34`, `B-16`): uno para Biblioteca, uno para Laboratorios y uno para Administración.
-3. **Abrir el dashboard** http://localhost:8080/CampusSeguro en pantalla completa, y marcar **Modo demostración**. Todos los edificios deben verse en azul y con 0 alertas.
-4. **Terminal de fondo:** abrir una Terminal en otro escritorio (o minimizada), ya ubicada en la carpeta del proyecto y con el comando escrito, sin ejecutar:
-   ```bash
-   cd ~/NetBeansProjects/CodigoAbierto
-   ./simular ID_BIBLIOTECA ID_LABORATORIOS ID_ADMINISTRACION
-   ```
-5. Tener a la mano la presentación de Slides.
+Todo en la Terminal, **unos 10 minutos antes** (el historial se fecha respecto a la hora en que se carga).
+
+**1. Empezar de cero y levantar todo**
+```bash
+cd ~/NetBeansProjects/CodigoAbierto
+./stop
+rm -f ~/CampusSeguro/campusseguro.mv.db
+./start
+```
+Esperar unos 15 segundos a que se carguen los equipos de Wazuh.
+
+**2. Elegir tres equipos con nombre neutro.** Sus nombres salen en el dashboard, y algunos equipos reales llevan nombres de personas:
+```bash
+./simular
+```
+Muestra los equipos activos. Anotar tres ids (por ejemplo `A-29`, `B-34`, `B-16`): el primero para Biblioteca, el segundo para Laboratorios y el tercero para Administración. En lo que sigue se usan `019 034 035`; cambiarlos por los elegidos.
+
+**3. Precargar el historial** (9 alertas simuladas repartidas en las últimas 23 horas):
+```bash
+./simular historial 019 034 035
+```
+Debe terminar con `Historial cargado: 9 alertas simuladas...`. Es una sola vez: repetirlo duplica el historial (para repetirlo, volver al paso 1).
+
+**4. Abrir el dashboard** http://localhost:8080/CampusSeguro en pantalla completa y marcar **Modo demostración**. Debe verse así:
+
+| | Alertas | Color |
+|---|---|---|
+| Biblioteca | 3 | dorado |
+| Laboratorios | 4 | dorado |
+| Administración | 2 | dorado |
+
+Total 9 alertas; la gráfica por hora con picos repartidos en el día.
+
+**5. Dejar listo el comando de la demo** en una Terminal en otro escritorio (o minimizada), **sin ejecutarlo**:
+```bash
+cd ~/NetBeansProjects/CodigoAbierto
+./simular 019 034 035
+```
+
+**6.** Tener a la mano la presentación de Slides.
 
 ## Diapositivas (6)
 
@@ -61,27 +82,36 @@ Java 21 con NetBeans y Ant · Tomcat 11 (servlets) · H2 (base de datos) · Hilo
 
 ## Dashboard en vivo con simulación (4 a 5 min)
 
-Cambiar al dashboard y explicar en 30 segundos el mapa, las cifras y los filtros (todo en 0). Después, **sin que se vea**, cambiar a la Terminal de fondo y ejecutar el comando de simulación; volver al dashboard. Cada fase espera 15 s (el tiempo de refresco), así que la pantalla cambia sola.
+Cambiar al dashboard y explicar en 30 segundos el mapa, las cifras, las gráficas y los filtros: ya hay un día de actividad (9 alertas, todo en dorado). Después, **sin que se vea**, cambiar a la Terminal de fondo, ejecutar el comando de simulación y volver al dashboard:
+
+```bash
+./simular 019 034 035
+```
+
+Dura unos 2 minutos. Cada fase espera 15 s (el tiempo de refresco), así que la pantalla cambia sola. Si se quiere más calma: `PAUSA=20 ./simular 019 034 035`.
 
 | Minuto | Fase de la simulación | Qué se ve en el dashboard | Qué decir |
 |---|---|---|---|
-| 0:00 | **1.** Biblioteca: 2 alertas | Biblioteca pasa a **dorado**; las cifras suben | "Llegaron dos alertas; el equipo está asignado a la Biblioteca y el mapa lo refleja." |
-| 0:20 | **2.** Laboratorios: 6 alertas | Laboratorios pasa a **guinda** al cruzar 5; la gráfica por edificio sube | "Con cinco o más alertas el edificio se pinta en guinda." Hacer clic en Laboratorios: se filtran panel y tabla. |
-| 1:00 | | En la tabla, **Directorio**: ENCONTRADO (Ana López, Marta Ruiz), IDENTIDAD_AMBIGUA (`luis`), NO_ENCONTRADO (`pedro`) | "Cada cuenta se busca en LDAP. `luis` existe dos veces, así que no se adivina; `pedro` no existe." |
-| 1:15 | **3.** Administración: 1 alerta con `CAMPUS\ana` | Administración pasa a **dorado**; la cuenta sale como `CAMPUS\ana` y el directorio la reconoce como `ana` | "El dominio se quita con una regla explícita." |
-| 1:30 | **4.** Alerta sin cuenta | Aparece sin cuenta ni directorio (SIN_USUARIO) | "Una alerta sin usuario se muestra igual." |
-| 1:45 | **5.** La misma alerta enviada dos veces | Biblioteca sube de 2 a **3**, no a 4 | "Un reenvío no duplica ni cuenta dos veces." |
-| 2:00 | **6.** Lote de 20 alertas | Administración sube a **22** y pasa a guinda en segundos | "Dos hilos procesan el lote con una cola limitada; la aplicación no se satura." |
-| 2:30 | Terminó | — | Quitar **Modo demostración**: todo vuelve a 0, porque las simuladas no cuentan en los indicadores normales. |
+| 0:00 | **1.** Biblioteca: 2 alertas | Biblioteca sube de 3 a **5** y pasa a **guinda**; la gráfica por hora empieza a subir | "Llegan alertas nuevas; con cinco o más el edificio se pinta en guinda." |
+| 0:20 | **2.** Laboratorios: 6 alertas | Laboratorios de 4 a **10**, pasa a **guinda**; la barra de la gráfica sube | Hacer clic en Laboratorios: se filtran panel y tabla. |
+| 1:00 | | En la tabla, columna **Directorio**: ENCONTRADO (Ana López, Marta Ruiz), IDENTIDAD_AMBIGUA (`luis`), NO_ENCONTRADO (`pedro`) | "Cada cuenta se busca en LDAP. `luis` existe dos veces, así que no se adivina; `pedro` no existe." |
+| 1:15 | **3.** Administración: 1 alerta con `CAMPUS\ana` | Administración de 2 a **3** (sigue dorado); la cuenta sale como `CAMPUS\ana` y el directorio la reconoce como `ana` | "El dominio se quita con una regla explícita." |
+| 1:30 | **4.** Alerta sin cuenta | Administración llega a **4**; la alerta aparece sin cuenta (SIN_USUARIO) | "Una alerta sin usuario se muestra igual." |
+| 1:45 | **5.** La misma alerta enviada dos veces | Biblioteca sube de 5 a **6**, no a 7 | "Un reenvío no duplica ni cuenta dos veces." |
+| 2:00 | **6.** Lote de 20 alertas | Administración salta a **24** y pasa a **guinda** en segundos; la gráfica por hora sube de golpe | "Dos hilos procesan el lote con una cola limitada; la aplicación no se satura." |
+| 2:30 | Terminó | Los tres edificios en guinda: 6, 10 y 24 alertas | |
 
-Para cerrar: cambiar a **Última hora** y **Nivel mínimo 10** para mostrar que los filtros recalculan mapa, gráficas y tabla.
+Para cerrar:
+- Quitar **Modo demostración**: todo vuelve a 0, porque las simuladas no cuentan en los indicadores normales.
+- Volver a marcarlo y cambiar a **Última hora** y **Nivel mínimo 10**: mapa, gráficas y tabla se recalculan (Biblioteca queda en 0 porque sus alertas son de nivel 5).
 
 ## Si algo falla
 
 - **El mapa no cambia:** la pantalla se refresca cada 15 s; esperar o recargar la página (confirmar que **Modo demostración** siga marcado).
 - **Dice "Wazuh sin responder":** la conexión a Wazuh no está disponible; la simulación funciona igual, porque no depende de Wazuh.
 - **`./simular` dice que la app no responde:** correr `./start`.
-- **Repetir la simulación sin reiniciar:** se puede (cada ejecución usa ids nuevos), pero los conteos se acumulan; para volver a cero, repetir los pasos de "Empezar de cero".
+- **`No se pudo asignar el equipo ...`:** Wazuh aún no se sincroniza (esperar unos segundos) o el id no existe (revisar con `./simular`).
+- **Repetir la simulación en vivo sin reiniciar:** se puede (cada ejecución usa ids nuevos), pero los conteos se acumulan. Para volver al punto de partida (historial limpio), repetir los pasos 1 a 3 de "Antes de la presentación".
 
 ## Al terminar
 

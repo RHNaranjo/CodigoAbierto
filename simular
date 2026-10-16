@@ -1,10 +1,11 @@
 #!/bin/sh
 # Simula alertas para la demo: las manda a la app que corre con ./start y el
 # dashboard (con modo demostración) las va mostrando. Dura unos 2 minutos.
-#   ./simular                 lista los equipos activos de Wazuh para elegir
-#   ./simular 015 018 027     corre la simulación con esos equipos
-#                             (Biblioteca, Laboratorios, Administración)
-#   PAUSA=20 ./simular ...    segundos entre fases (15 por defecto: lo que tarda el dashboard en refrescar)
+#   ./simular                          lista los equipos activos de Wazuh para elegir
+#   ./simular historial 015 018 027    ANTES de la demo: precarga 9 alertas de las últimas 24 horas
+#   ./simular 015 018 027              durante la demo: simulación en vivo (unos 2 minutos)
+# Los ids son los equipos de Biblioteca, Laboratorios y Administración.
+#   PAUSA=20 ./simular ...             segundos entre fases (15 por defecto: lo que tarda el dashboard en refrescar)
 # Elegir equipos con nombres neutros: sus nombres salen en el dashboard.
 URL=http://localhost:8080/CampusSeguro
 PAUSA=${PAUSA:-15}
@@ -13,6 +14,12 @@ CLAVE=$(grep '^CAMPUS_ALERTAS_API_KEY=' "$HOME/CampusSeguro/campus.properties" |
 if ! curl -s -o /dev/null "$URL/api/estado"; then
     echo "La app no responde en $URL. Correr ./start primero."
     exit 1
+fi
+
+MODO=vivo
+if [ "$1" = "historial" ]; then
+    MODO=historial
+    shift
 fi
 
 # Sin argumentos: solo listar los equipos activos
@@ -29,9 +36,18 @@ fi
 BIBLIOTECA=$1
 LABS=$2
 ADMIN=$3
-curl -s -o /dev/null -X PUT "$URL/api/agentes?id=$BIBLIOTECA&edificio=1"
-curl -s -o /dev/null -X PUT "$URL/api/agentes?id=$LABS&edificio=2"
-curl -s -o /dev/null -X PUT "$URL/api/agentes?id=$ADMIN&edificio=3"
+
+# asignar AGENTE EDIFICIO: si el equipo no existe, Wazuh aún no se sincronizó
+asignar() {
+    codigo=$(curl -s -o /dev/null -w '%{http_code}' -X PUT "$URL/api/agentes?id=$1&edificio=$2")
+    if [ "$codigo" != "200" ]; then
+        echo "No se pudo asignar el equipo $1 (¿existe? ¿ya se sincronizó Wazuh?)"
+        exit 1
+    fi
+}
+asignar "$BIBLIOTECA" 1
+asignar "$LABS" 2
+asignar "$ADMIN" 3
 
 # Cada ejecución usa ids nuevos, así se puede repetir sin que cuenten como reenvíos
 EJEC=$(date +%s)
@@ -41,12 +57,44 @@ ID=""
 # enviar AGENTE NIVEL DESCRIPCION [USUARIO]
 enviar() {
     N=$((N + 1))
-    ahora=$(date -u +%Y-%m-%dT%H:%M:%S.000+0000)
+    ahora=${FECHA:-$(date -u +%Y-%m-%dT%H:%M:%S.000+0000)}
     data=""
     [ -n "$4" ] && data=',"data":{"srcuser":"'"$4"'"}'
     curl -s -o /dev/null -X POST "$URL/api/alertas" -H "X-API-Key: $CLAVE" \
         -d '{"id":"'"${ID:-sim-$EJEC-$N}"'","timestamp":"'"$ahora"'","manager":{"name":"wazuh"},"agent":{"id":"'"$1"'"},"rule":{"id":"5710","level":'"$2"',"description":"'"$3"'"}'"$data"'}'
 }
+
+# Historial: alertas con fecha de horas atrás, para que el dashboard no empiece vacío.
+# Con estos números, la simulación en vivo cruza el umbral de 5 alertas en
+# Biblioteca (3 -> 5), Laboratorios (4 -> 10) y Administración (2 -> 24).
+if [ "$MODO" = "historial" ]; then
+    # HORAS_ATRÁS MINUTOS_ATRÁS EQUIPO NIVEL USUARIO (- = sin usuario)
+    while read horas minutos agente nivel usuario; do
+        FECHA=$(date -u -v-${horas}H -v-${minutos}M +%Y-%m-%dT%H:%M:%S.000+0000 2>/dev/null \
+            || date -u -d "$horas hours ago $minutos minutes ago" +%Y-%m-%dT%H:%M:%S.000+0000)
+        ID="hist-$EJEC-$horas-$minutos"
+        [ "$usuario" = "-" ] && usuario=""
+        if [ "$nivel" = "10" ]; then
+            enviar "$agente" 10 "sshd: multiples fallos de autenticacion" "$usuario"
+        else
+            enviar "$agente" 5 "PAM: fallo de autenticacion" "$usuario"
+        fi
+    done <<LISTA
+22 40 $BIBLIOTECA 5 marta
+20 15 $LABS 5 ana
+18 50 $LABS 10 luis
+18 20 $BIBLIOTECA 5 ana
+16 5 $ADMIN 5 -
+14 30 $LABS 5 pedro
+11 20 $BIBLIOTECA 5 marta
+8 45 $LABS 10 marta
+8 10 $ADMIN 5 ana
+LISTA
+    sleep 4 # los hilos terminan de procesar
+    echo "Historial cargado: 9 alertas simuladas de las últimas 23 horas."
+    echo "Ahora el dashboard (con Modo demostración) arranca con un día de actividad."
+    exit 0
+fi
 
 fase() {
     echo
@@ -58,13 +106,13 @@ espera() {
     sleep "$PAUSA"
 }
 
-fase "1/6 Biblioteca: 2 alertas (el mapa pasa a dorado)"
+fase "1/6 Biblioteca: 2 alertas (de 3 a 5: pasa a guinda)"
 enviar "$BIBLIOTECA" 5 "sshd: intento con usuario inexistente" ana
 sleep 3
 enviar "$BIBLIOTECA" 5 "PAM: fallo de autenticacion" marta
 espera
 
-fase "2/6 Laboratorios: 6 alertas (cruza las 5: pasa a guinda)"
+fase "2/6 Laboratorios: 6 alertas (de 4 a 10: pasa a guinda)"
 for usuario in luis luis ana marta pedro ana; do
     enviar "$LABS" 10 "sshd: multiples fallos de autenticacion" "$usuario"
     sleep 2
@@ -75,11 +123,11 @@ fase "3/6 Administracion: 1 alerta, con la cuenta escrita con dominio (CAMPUS y 
 enviar "$ADMIN" 5 "Windows: fallo de inicio de sesion" "CAMPUS\\\\ana"
 espera
 
-fase "4/6 Alerta sin cuenta de usuario"
+fase "4/6 Alerta sin cuenta de usuario (Administracion llega a 4)"
 enviar "$ADMIN" 5 "Fallo de autenticacion sin usuario"
 espera
 
-fase "5/6 La misma alerta enviada dos veces: solo cuenta una"
+fase "5/6 La misma alerta enviada dos veces: Biblioteca sube de 5 a 6, no a 7"
 ID="sim-$EJEC-repetida"
 enviar "$BIBLIOTECA" 5 "PAM: fallo de autenticacion" marta
 sleep 2
