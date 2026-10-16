@@ -1,6 +1,7 @@
 package com.campusseguro.config;
 
 import com.campusseguro.service.AgentSyncJob;
+import com.campusseguro.service.AlertSyncJob;
 import com.campusseguro.service.BuildingService;
 import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
@@ -28,10 +29,12 @@ public class Inicio implements ServletContextListener {
             LOGGER.severe("Error preparando la base de datos: " + e.getMessage());
         }
         AgentSyncJob.iniciar();
+        AlertSyncJob.iniciar();
     }
 
     @Override
     public void contextDestroyed(ServletContextEvent sce) {
         AgentSyncJob.detener();
+        AlertSyncJob.detener();
     }
 }
