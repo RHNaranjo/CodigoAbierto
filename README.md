@@ -14,13 +14,14 @@ Para usar *Java with Ant* y seguir el estilo de los proyectos de NetBeans (Proce
 | @Async / @Scheduled      | `ThreadPoolExecutor` / `ScheduledExecutorService` |
 | Thymeleaf                | HTML + JavaScript estático                      |
 | Integración `custom-campus` en el manager | Consulta al indexador (OpenSearch) cada 60 s |
-| Paquetes `dto` y `repository` | No se usan: los servlets arman el JSON y los servicios hacen el JDBC |
+| Paquete `repository`     | No se usa: los servicios hacen el JDBC. `dto` solo tiene `Filtro` |
+| Mapa: verde, amarillo, rojo | Azul (0), dorado (1 a 4), guinda (5 o más), colores del proyecto |
 
 Wazuh es institucional: no se le hace ningún cambio (usuarios, permisos ni integraciones). Por eso las alertas se **consultan** al indexador en lugar de recibirse con `custom-campus`, y solo se usan credenciales que ya existen.
 
 ## Requisitos
 
-- Java 21, NetBeans y Tomcat 11 registrado en NetBeans
+- Java 21, NetBeans y Tomcat 11 (`brew install tomcat`)
 - Acceso de lectura a Wazuh: API (puerto 55000) e indexador (puerto 9200)
 - OpenLDAP de laboratorio: `brew install openldap` (macOS)
 
@@ -44,6 +45,8 @@ Wazuh es institucional: no se le hace ningún cambio (usuarios, permisos ni inte
    - `/api/agentes`: los agentes de Wazuh (aparecen tras la primera sincronización, unos segundos; `desactualizado: true` indica que Wazuh no respondió).
    - `/api/alertas`: las alertas guardadas (`origen` REAL, del indexador; o SIMULADO, enviadas por POST), con su edificio y resultado LDAP.
 7. **Asignar edificios** a los agentes (ver Endpoints).
+
+**Sin NetBeans:** `./start` levanta el LDAP, compila y arranca un Tomcat propio en `~/CampusSeguro/tomcat` (http://localhost:8080/CampusSeguro); `./stop` detiene todo. No correr al mismo tiempo que el Tomcat de NetBeans (mismo puerto y misma base). Para una demostración guiada, ver [DEMO.md](DEMO.md).
 
 Sin `WAZUH_API_URL` u `OPENSEARCH_URL` la app arranca, pero no sincroniza agentes o alertas; sin `LDAP_URL` las alertas quedan con `ERROR_LDAP` (se avisa en la consola de Tomcat).
 
@@ -82,8 +85,16 @@ Clic derecho en el proyecto → Test (JUnit).
 | GET    | `/api/edificios`  | Edificios                                 |
 | GET    | `/api/agentes`    | Agentes, estado, edificio y si están desactualizados |
 | PUT    | `/api/agentes`    | Asignar edificio a un agente              |
-| GET    | `/api/alertas`    | Alertas guardadas, con edificio y resultado LDAP |
+| GET    | `/api/alertas`    | Alertas con edificio y resultado LDAP, filtradas y por páginas |
+| GET    | `/api/edificios/resumen` | Conteos por edificio para el mapa y estado de Wazuh |
+| GET    | `/mapa/campus.geojson` | Polígonos de los edificios |
+| GET    | `/graficas/alertas-por-edificio.png` | Barras del periodo |
+| GET    | `/graficas/alertas-por-hora.png` | Línea de las últimas 24 h |
 | POST   | `/api/alertas`    | Guardar una alerta **simulada** (cabecera `X-API-Key`, máx. 100 KB) |
+
+Filtros de `GET /api/alertas`, del resumen y de las gráficas: `horas` (periodo, 24 por defecto), `nivel` (mínimo), `demo=true` (incluye simuladas), `edificio` (1, 2, 3; 0 = Sin edificio). La lista acepta además `pagina` y `tamano` (20 por defecto).
+
+El dashboard (`/`) los usa todos y se actualiza cada 15 s. Leaflet está en `web/lib` para que funcione sin internet.
 
 Asignar el agente `001` a Laboratorios (1 Biblioteca, 2 Laboratorios, 3 Administración):
 
@@ -103,9 +114,13 @@ Sin `edificio` el agente queda *Sin edificio*. La sincronización con Wazuh (cad
 - [x] 5b. Ajustes a los pasos 4 y 5.
 - [x] 6. Procesamiento con hilos (2 hilos, cola de 100): asignar edificio, marcar procesada y recuperar pendientes.
 - [x] 7. LDAP por JNDI con un OpenLDAP local de laboratorio (LDIF con 3 usuarios) y sus resultados (ENCONTRADO, NO_ENCONTRADO, etc.).
-- [ ] 8. Dashboard: mapa Leaflet con GeoJSON, tabla de alertas (con paginación y filtros) y alertas simuladas.
-- [ ] 9. Gráficas PNG: alertas por edificio y por hora.
-- [ ] 10. Pruebas de aceptación e instrucciones de instalación.
+- [x] 8. Dashboard: mapa Leaflet con GeoJSON, tabla de alertas (con paginación y filtros) y modo demostración.
+- [x] 9. Gráficas PNG con JFreeChart: alertas por edificio y por hora.
+- [ ] 10. Pruebas de aceptación, evidencia e instrucciones de instalación.
+
+### Pendiente
+
+- Proteger con autenticación el dashboard y `PUT /api/agentes` (sección 14 de las instrucciones).
 
 ### Por verificar con datos reales
 

@@ -1,0 +1,32 @@
+#!/bin/sh
+# Detiene lo que levantó ./start: Tomcat (la app cierra sus hilos al apagarse)
+# y el LDAP de laboratorio. Los datos se quedan en ~/CampusSeguro.
+cd "$(dirname "$0")"
+BASE="$HOME/CampusSeguro"
+
+# Espera a que termine un proceso (máximo 20 s)
+esperar() {
+    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+        kill -0 "$1" 2>/dev/null || return 0
+        sleep 1
+    done
+    echo "No terminó a tiempo; se fuerza"
+    kill -9 "$1" 2>/dev/null
+}
+
+if [ -f "$BASE/tomcat/tomcat.pid" ]; then
+    PID=$(cat "$BASE/tomcat/tomcat.pid")
+    kill "$PID" 2>/dev/null && esperar "$PID"
+    rm -f "$BASE/tomcat/tomcat.pid"
+    echo "Tomcat detenido"
+else
+    echo "Tomcat no estaba corriendo (desde ./start)"
+fi
+
+if [ -f "$BASE/ldap/slapd.pid" ]; then
+    PID=$(cat "$BASE/ldap/slapd.pid")
+    kill "$PID" 2>/dev/null && esperar "$PID"
+    echo "LDAP detenido"
+else
+    echo "LDAP no estaba corriendo"
+fi

@@ -22,6 +22,8 @@ public class Inicio implements ServletContextListener {
 
     @Override
     public void contextInitialized(ServletContextEvent sce) {
+        // Las gráficas se dibujan sin pantalla (no se abren ventanas Swing)
+        System.setProperty("java.awt.headless", "true");
         try {
             BaseDatos.crearTablas();
             BuildingService.cargarEdificios();

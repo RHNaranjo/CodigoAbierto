@@ -1,0 +1,296 @@
+/* Colores: azul #002D72, guinda #8A1538, dorado #BA9357. Todo liso. */
+
+* {
+    box-sizing: border-box;
+    border-radius: 0;
+}
+
+body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    color: #222;
+    background: #fff;
+}
+
+h1, h2, h3 {
+    margin: 0;
+    font-weight: 600;
+}
+
+h2 {
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+h3 {
+    font-size: 13px;
+    margin: 18px 0 6px;
+}
+
+.nota {
+    color: #777;
+    font-size: 12px;
+    margin: 8px 0 0;
+}
+
+/* Encabezado */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 24px;
+    background: #002D72;
+    color: #fff;
+    border-bottom: 4px solid #BA9357;
+}
+
+header h1 {
+    font-size: 18px;
+}
+
+header h1 span {
+    font-weight: 400;
+    font-size: 13px;
+    margin-left: 12px;
+    opacity: .8;
+}
+
+#estado {
+    font-size: 12px;
+}
+
+#estado .aviso {
+    background: #8A1538;
+    padding: 2px 6px;
+    margin-left: 8px;
+}
+
+/* Filtros */
+#filtros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: center;
+    padding: 12px 24px;
+    background: #f4f4f4;
+    border-bottom: 1px solid #e3e3e3;
+    font-size: 13px;
+}
+
+#filtros select {
+    margin-left: 6px;
+    padding: 4px;
+    font: inherit;
+    border: 1px solid #ccc;
+    background: #fff;
+}
+
+#filtros .check {
+    margin-left: auto;
+}
+
+main {
+    padding: 0 24px 24px;
+}
+
+section {
+    padding: 20px 0;
+    border-bottom: 1px solid #e3e3e3;
+}
+
+/* Cifras */
+#cifras {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+}
+
+#cifras div {
+    padding-left: 16px;
+    border-left: 1px solid #e3e3e3;
+    color: #666;
+    font-size: 12px;
+}
+
+#cifras div:first-child {
+    padding-left: 0;
+    border-left: 0;
+}
+
+#cifras b {
+    display: block;
+    font-size: 26px;
+    font-weight: 600;
+    color: #002D72;
+}
+
+/* Mapa y detalle */
+#mapa-y-detalle, #graficas {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 32px;
+}
+
+#graficas {
+    grid-template-columns: 1fr 1fr;
+}
+
+#mapa {
+    height: 340px;
+    background: #f2f1ee;
+}
+
+.leaflet-container {
+    font: inherit;
+}
+
+.leaflet-tooltip.etiqueta {
+    background: none;
+    border: 0;
+    box-shadow: none;
+    color: #fff;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+#leyenda {
+    display: flex;
+    gap: 18px;
+    list-style: none;
+    padding: 0;
+    margin: 10px 0 0;
+    font-size: 12px;
+    color: #555;
+}
+
+#leyenda i {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-right: 6px;
+    vertical-align: -1px;
+}
+
+.nivel-0 { background: #002D72; }
+.nivel-1 { background: #BA9357; }
+.nivel-2 { background: #8A1538; }
+
+table.datos {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+table.datos td {
+    padding: 6px 0;
+    border-bottom: 1px solid #eee;
+}
+
+table.datos td:last-child {
+    text-align: right;
+    font-weight: 600;
+}
+
+#d-eventos {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 12px;
+}
+
+#d-eventos li {
+    padding: 6px 0;
+    border-bottom: 1px solid #eee;
+}
+
+#d-eventos small {
+    display: block;
+    color: #777;
+}
+
+/* Gráficas */
+#graficas img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Tabla de alertas */
+#tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+#tabla th {
+    text-align: left;
+    font-weight: 600;
+    color: #555;
+    padding: 8px 6px;
+    border-bottom: 2px solid #002D72;
+}
+
+#tabla td {
+    padding: 7px 6px;
+    border-bottom: 1px solid #eee;
+    vertical-align: top;
+}
+
+#tabla td.vacio {
+    color: #777;
+    text-align: center;
+    padding: 24px;
+}
+
+.simulada {
+    color: #BA9357;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+.alto {
+    color: #8A1538;
+    font-weight: 600;
+}
+
+#paginas {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: flex-end;
+    margin-top: 12px;
+    font-size: 13px;
+}
+
+#paginas button {
+    font: inherit;
+    padding: 4px 12px;
+    border: 1px solid #002D72;
+    background: #fff;
+    color: #002D72;
+    cursor: pointer;
+}
+
+#paginas button:disabled {
+    border-color: #ccc;
+    color: #aaa;
+    cursor: default;
+}
+
+/* Pantallas angostas: una columna */
+@media (max-width: 900px) {
+    #mapa-y-detalle, #graficas {
+        grid-template-columns: 1fr;
+    }
+    #cifras {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+    #filtros .check {
+        margin-left: 0;
+    }
+    #tabla {
+        display: block;
+        overflow-x: auto;
+    }
+}

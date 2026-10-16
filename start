@@ -1,0 +1,62 @@
+#!/bin/sh
+# Levanta todo CampusSeguro fuera de NetBeans:
+#   1. LDAP de laboratorio (ldap/iniciar.sh)
+#   2. Compila el proyecto con javac
+#   3. Tomcat propio en ~/CampusSeguro/tomcat -> http://localhost:8080/CampusSeguro
+# Requiere: Java 21+, Tomcat 11 (brew install tomcat) y openldap (brew install openldap).
+# Se detiene con ./stop
+set -e
+cd "$(dirname "$0")"
+
+BASE="$HOME/CampusSeguro"
+TOMCAT_HOME="${CATALINA_HOME:-$(brew --prefix tomcat)/libexec}"
+TOMCAT="$BASE/tomcat"
+APP="$TOMCAT/webapps/CampusSeguro"
+
+if [ ! -f "$BASE/campus.properties" ]; then
+    echo "Falta $BASE/campus.properties (copiar campus.properties.example y llenarlo)"
+    exit 1
+fi
+if curl -s -o /dev/null http://localhost:8080/; then
+    echo "El puerto 8080 está ocupado (¿Tomcat de NetBeans corriendo?). Deténlo primero."
+    exit 1
+fi
+
+echo "1/3 LDAP de laboratorio"
+./ldap/iniciar.sh
+
+echo "2/3 Compilando"
+rm -rf "$APP"
+mkdir -p "$APP/WEB-INF/classes" "$APP/WEB-INF/lib"
+javac --release 21 -encoding UTF-8 -parameters -nowarn \
+    -cp "lib/*:$TOMCAT_HOME/lib/servlet-api.jar" \
+    -d "$APP/WEB-INF/classes" $(find src/java -name '*.java')
+cp -R web/. "$APP/"
+cp lib/*.jar "$APP/WEB-INF/lib/"
+
+echo "3/3 Tomcat"
+# Configuración propia la primera vez: sin apps de ejemplo ni la de NetBeans
+if [ ! -f "$TOMCAT/conf/server.xml" ]; then
+    mkdir -p "$TOMCAT/conf" "$TOMCAT/logs" "$TOMCAT/temp" "$TOMCAT/work"
+    for f in server.xml web.xml context.xml logging.properties catalina.properties; do
+        cp -L "$TOMCAT_HOME/conf/$f" "$TOMCAT/conf/"
+    done
+    echo '<tomcat-users/>' > "$TOMCAT/conf/tomcat-users.xml"
+    sed -i '' 's/port="8005"/port="-1"/' "$TOMCAT/conf/server.xml"
+fi
+
+CATALINA_BASE="$TOMCAT" CATALINA_PID="$TOMCAT/tomcat.pid" \
+    CATALINA_OPTS="-Djava.awt.headless=true" \
+    "$TOMCAT_HOME/bin/catalina.sh" start > /dev/null
+
+# Esperar a que responda
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+    if curl -s -o /dev/null http://localhost:8080/CampusSeguro/api/estado; then
+        echo "Listo: http://localhost:8080/CampusSeguro"
+        echo "Log: $TOMCAT/logs/catalina.out"
+        exit 0
+    fi
+    sleep 1
+done
+echo "Tomcat no respondió; revisar $TOMCAT/logs/catalina.out"
+exit 1

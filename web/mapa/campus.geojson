@@ -1,0 +1,20 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "poligono": "biblioteca", "nombre": "Biblioteca" },
+      "geometry": { "type": "Polygon", "coordinates": [[[12, 40], [50, 40], [50, 72], [34, 72], [34, 56], [12, 56], [12, 40]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "poligono": "laboratorios", "nombre": "Laboratorios" },
+      "geometry": { "type": "Polygon", "coordinates": [[[62, 46], [110, 46], [110, 66], [62, 66], [62, 46]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "poligono": "administracion", "nombre": "Administración" },
+      "geometry": { "type": "Polygon", "coordinates": [[[42, 8], [82, 8], [82, 30], [42, 30], [42, 8]]] }
+    }
+  ]
+}

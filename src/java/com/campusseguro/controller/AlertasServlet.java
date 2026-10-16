@@ -1,9 +1,10 @@
 package com.campusseguro.controller;
 
-import com.campusseguro.config.BaseDatos;
 import com.campusseguro.config.Config;
+import com.campusseguro.dto.Filtro;
 import com.campusseguro.service.AlertProcessingService;
 import com.campusseguro.service.AlertService;
+import com.campusseguro.service.DashboardService;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -14,17 +15,12 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
- * GET /api/alertas: alertas guardadas con su resultado LDAP.
+ * GET /api/alertas: alertas con su resultado LDAP, filtradas y por páginas.
  * POST /api/alertas: guarda una alerta SIMULADA (cabecera X-API-Key).
  * Las alertas REALES las trae AlertSyncJob desde el indexador de Wazuh.
  *
@@ -79,55 +75,19 @@ public class AlertasServlet extends HttpServlet {
         }
     }
 
+    // ?horas=24&nivel=0&demo=false&edificio=2&pagina=0&tamano=20
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
         response.setContentType("application/json; charset=UTF-8");
+        int pagina = Filtro.entero(request.getParameter("pagina"), 0);
+        int tamano = Math.min(Filtro.entero(request.getParameter("tamano"), 20), 200);
 
-        String sql = "SELECT a.*, l.resultado, l.uid, l.nombre, l.correo, l.departamento"
-                + " FROM alerta a LEFT JOIN enriquecimiento_ldap l ON l.alerta_id = a.id_interno"
-                + " ORDER BY a.fecha_recepcion DESC";
-        List<Map<String, Object>> alertas = new ArrayList<>();
-
-        try (Connection con = BaseDatos.conectar();
-             ResultSet rs = con.createStatement().executeQuery(sql)) {
-            while (rs.next()) {
-                Map<String, Object> alerta = new LinkedHashMap<>();
-                alerta.put("idInterno", rs.getLong("id_interno"));
-                alerta.put("managerId", rs.getString("manager_id"));
-                alerta.put("idWazuh", rs.getString("id_wazuh"));
-                alerta.put("fechaEvento", fecha(rs.getTimestamp("fecha_evento")));
-                alerta.put("fechaRecepcion", fecha(rs.getTimestamp("fecha_recepcion")));
-                alerta.put("agenteId", rs.getString("agente_id"));
-                alerta.put("edificioId", rs.getObject("edificio_id"));
-                alerta.put("reglaId", rs.getString("regla_id"));
-                alerta.put("nivel", rs.getObject("nivel"));
-                alerta.put("descripcion", rs.getString("descripcion"));
-                alerta.put("usuarioEvento", rs.getString("usuario_evento"));
-                alerta.put("estadoProcesamiento", rs.getString("estado_procesamiento"));
-                alerta.put("origen", rs.getString("origen"));
-
-                // Solo las alertas ya procesadas tienen resultado LDAP
-                if (rs.getString("resultado") != null) {
-                    Map<String, Object> ldap = new LinkedHashMap<>();
-                    ldap.put("resultado", rs.getString("resultado"));
-                    ldap.put("uid", rs.getString("uid"));
-                    ldap.put("nombre", rs.getString("nombre"));
-                    ldap.put("correo", rs.getString("correo"));
-                    ldap.put("departamento", rs.getString("departamento"));
-                    alerta.put("ldap", ldap);
-                }
-                alertas.add(alerta);
-            }
-            response.getWriter().write(GSON.toJson(alertas));
-
+        try {
+            response.getWriter().write(GSON.toJson(DashboardService.alertas(Filtro.desde(request), pagina, tamano)));
         } catch (SQLException e) {
             System.err.println("Error consultando alertas: " + e.getMessage());
             responder(response, 500, "error", "No se pudieron consultar las alertas.");
         }
-    }
-
-    private static String fecha(Timestamp t) {
-        return t == null ? null : t.toString();
     }
 
     private void responder(HttpServletResponse response, int codigo, String estado, String mensaje) throws IOException {

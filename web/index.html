@@ -1,16 +1,117 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
     <head>
         <title>CampusSeguro</title>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="lib/leaflet.css">
+        <link rel="stylesheet" href="css/dashboard.css">
     </head>
     <body>
-        <h1>CampusSeguro</h1>
-        <!-- El dashboard (mapa, tabla y gráficas) se construye en el paso 8 -->
-        <p><a href="api/estado">Estado del servidor</a></p>
-        <p><a href="api/edificios">Edificios</a></p>
-        <p><a href="api/agentes">Agentes</a></p>
-        <p><a href="api/alertas">Alertas</a></p>
+        <header>
+            <h1>CampusSeguro <span>Alertas de autenticación por edificio</span></h1>
+            <div id="estado">Cargando…</div>
+        </header>
+
+        <form id="filtros">
+            <label>Edificio
+                <select name="edificio">
+                    <option value="">Todos</option>
+                    <option value="1">Biblioteca</option>
+                    <option value="2">Laboratorios</option>
+                    <option value="3">Administración</option>
+                    <option value="0">Sin edificio</option>
+                </select>
+            </label>
+            <label>Periodo
+                <select name="horas">
+                    <option value="1">Última hora</option>
+                    <option value="24" selected>Últimas 24 horas</option>
+                    <option value="168">Últimos 7 días</option>
+                    <option value="720">Últimos 30 días</option>
+                </select>
+            </label>
+            <label>Nivel mínimo
+                <select name="nivel">
+                    <option value="0">Todos</option>
+                    <option value="5">5 o más</option>
+                    <option value="7">7 o más</option>
+                    <option value="10">10 o más</option>
+                </select>
+            </label>
+            <label class="check"><input type="checkbox" name="demo"> Modo demostración (incluye alertas simuladas)</label>
+        </form>
+
+        <main>
+            <section id="cifras">
+                <div><b id="c-alertas">–</b>Alertas en el periodo</div>
+                <div><b id="c-equipos">–</b>Equipos registrados</div>
+                <div><b id="c-activos">–</b>Equipos activos</div>
+                <div><b id="c-sin">–</b>Alertas sin edificio</div>
+            </section>
+
+            <section id="mapa-y-detalle">
+                <div>
+                    <h2>Mapa del campus</h2>
+                    <div id="mapa"></div>
+                    <ul id="leyenda">
+                        <li><i class="nivel-0"></i>0 alertas</li>
+                        <li><i class="nivel-1"></i>1 a 4</li>
+                        <li><i class="nivel-2"></i>5 o más</li>
+                    </ul>
+                    <p class="nota">El color indica el número de alertas en el periodo, no una evaluación de riesgo.</p>
+                </div>
+                <div id="detalle">
+                    <h2 id="d-nombre">Todo el campus</h2>
+                    <table class="datos">
+                        <tr><td>Equipos registrados</td><td id="d-equipos">–</td></tr>
+                        <tr><td>Equipos activos</td><td id="d-activos">–</td></tr>
+                        <tr><td>Alertas en el periodo</td><td id="d-alertas">–</td></tr>
+                    </table>
+                    <h3>Eventos recientes</h3>
+                    <ul id="d-eventos"></ul>
+                    <p class="nota">Selecciona un edificio en el mapa para ver su detalle.</p>
+                </div>
+            </section>
+
+            <section id="graficas">
+                <div>
+                    <h2>Alertas por edificio</h2>
+                    <img id="g-edificio" alt="Alertas por edificio" width="520" height="240">
+                </div>
+                <div>
+                    <h2>Alertas por hora (últimas 24 horas)</h2>
+                    <img id="g-hora" alt="Alertas por hora" width="520" height="240">
+                </div>
+            </section>
+
+            <section>
+                <h2>Alertas</h2>
+                <table id="tabla">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Edificio</th>
+                            <th>Equipo</th>
+                            <th>Regla</th>
+                            <th>Nivel</th>
+                            <th>Descripción</th>
+                            <th>Cuenta mencionada</th>
+                            <th>Directorio</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div id="paginas">
+                    <button type="button" id="anterior">Anterior</button>
+                    <span id="rango"></span>
+                    <button type="button" id="siguiente">Siguiente</button>
+                </div>
+                <p class="nota">La cuenta mencionada en una alerta no es necesariamente la responsable del evento.</p>
+            </section>
+        </main>
+
+        <script src="lib/leaflet.js"></script>
+        <script src="js/dashboard.js"></script>
     </body>
 </html>
