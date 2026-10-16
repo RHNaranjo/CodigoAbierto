@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 
+
 /**
  * Consulta al indexador de Wazuh (OpenSearch) las alertas de fallos de
  * autenticación. Solo lectura: no se modifica nada en Wazuh.

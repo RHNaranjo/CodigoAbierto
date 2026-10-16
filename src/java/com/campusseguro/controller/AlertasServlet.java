@@ -33,44 +33,6 @@ import java.util.Map;
 public class AlertasServlet extends HttpServlet {
 
     private static final Gson GSON = new Gson();
-    private static final int TAMANO_MAXIMO = 100_000; // bytes
-
-    @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        response.setContentType("application/json; charset=UTF-8");
-
-        // La clave debe estar configurada y coincidir con la recibida
-        String clave = Config.get("CAMPUS_ALERTAS_API_KEY");
-        if (clave == null || clave.isBlank()) {
-            responder(response, 503, "error", "La clave de integración no está configurada.");
-            return;
-        }
-        String recibida = request.getHeader("X-API-Key");
-        if (recibida == null || !MessageDigest.isEqual(
-                clave.getBytes(StandardCharsets.UTF_8), recibida.getBytes(StandardCharsets.UTF_8))) {
-            responder(response, 401, "error", "No autorizado.");
-            return;
-        }
-
-        // Se lee un byte de más para detectar que el JSON excede el límite
-        byte[] cuerpo = request.getInputStream().readNBytes(TAMANO_MAXIMO + 1);
-        if (cuerpo.length > TAMANO_MAXIMO) {
-            responder(response, 413, "error", "El JSON es demasiado grande.");
-            return;
-        }
-
-        try {
-            JsonObject alerta = JsonParser.parseString(new String(cuerpo, StandardCharsets.UTF_8)).getAsJsonObject();
-            boolean nueva = AlertService.guardarAlerta(alerta, "SIMULADO");
-            responder(response, 202, "ok", nueva ? "Alerta guardada." : "La alerta ya estaba registrada.");
-        } catch (SQLException e) {
-            System.err.println("Error guardando alerta: " + e.getMessage());
-            responder(response, 503, "error", "No se pudo guardar la alerta.");
-        } catch (RuntimeException e) {
-            // JSON mal formado, sin id o manager.name, o con fecha inválida
-            responder(response, 400, "error", "El JSON recibido no es válido.");
-        }
-    }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
