@@ -8,13 +8,20 @@ WAZUH_API_USER=usuario_de_consulta
 WAZUH_API_PASSWORD=secreto
 
 # Indexador de Wazuh (puerto 9200): consulta de alertas.
-# El usuario del dashboard es un usuario del indexador.
+# Si se dejan vacíos usuario y contraseña, se usan los de la API.
 OPENSEARCH_URL=https://SERVIDOR_WAZUH:9200
-OPENSEARCH_USER=usuario_del_indexador
-OPENSEARCH_PASSWORD=secreto
+#OPENSEARCH_USER=usuario_del_indexador
+#OPENSEARCH_PASSWORD=secreto
 
 # Grupo de reglas a consultar (opcional; por defecto authentication_failed)
 #ALERTAS_GRUPO=authentication_failed
 
 # Clave para POST /api/alertas (cabecera X-API-Key)
 CAMPUS_ALERTAS_API_KEY=secreto_de_alertas
+
+# OpenLDAP de laboratorio (ldap/iniciar.sh). Lectura anónima;
+# LDAP_USER y LDAP_PASSWORD solo si el directorio la pide.
+LDAP_URL=ldap://localhost:3890
+LDAP_BASE=ou=usuarios,dc=campus,dc=local
+#LDAP_USER=cn=lector,dc=campus,dc=local
+#LDAP_PASSWORD=secreto

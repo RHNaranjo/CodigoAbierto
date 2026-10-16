@@ -5,7 +5,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.OffsetDateTime;
 
@@ -29,10 +31,10 @@ public class AlertService {
      *
      * @param resultado alerta de Wazuh, sola o dentro de "_source"
      * @param origen REAL o SIMULADO
-     * @return true si se guardó; false si ya existía
+     * @return id interno de la alerta nueva, o null si ya existía
      * @throws IllegalArgumentException si falta manager.name o id
      */
-    public static boolean guardarAlerta(JsonObject resultado, String origen) throws SQLException {
+    public static Long guardarAlerta(JsonObject resultado, String origen) throws SQLException {
         JsonObject alerta = resultado.has("_source") && resultado.get("_source").isJsonObject()
                 ? resultado.getAsJsonObject("_source")
                 : resultado;
@@ -53,12 +55,13 @@ public class AlertService {
             descripcion = descripcion.substring(0, 500);
         }
 
-        // Edificio y usuario del directorio se completan al procesar (paso 6)
+        // Edificio y usuario del directorio los completa AlertProcessingService
         String sql = "INSERT INTO alerta (manager_id, id_wazuh, fecha_evento, fecha_recepcion,"
                 + " agente_id, regla_id, nivel, descripcion, usuario_evento,"
                 + " estado_procesamiento, origen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDIENTE', ?)";
 
-        try (Connection con = BaseDatos.conectar(); PreparedStatement ps = con.prepareStatement(sql)) {
+        try (Connection con = BaseDatos.conectar();
+             PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, managerId);
             ps.setString(2, idWazuh);
             ps.setObject(3, convertirFecha(fecha));
@@ -70,12 +73,15 @@ public class AlertService {
             ps.setObject(9, usuario(alerta));
             ps.setString(10, origen);
             ps.executeUpdate();
-            return true;
+            try (ResultSet claves = ps.getGeneratedKeys()) {
+                claves.next();
+                return claves.getLong(1);
+            }
 
         } catch (SQLException e) {
             // 23505: la combinación manager_id + id_wazuh ya existe
             if ("23505".equals(e.getSQLState())) {
-                return false;
+                return null;
             }
             throw e;
         }

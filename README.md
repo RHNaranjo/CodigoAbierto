@@ -14,6 +14,7 @@ Para usar *Java with Ant* y seguir el estilo de los proyectos de NetBeans (Proce
 | @Async / @Scheduled      | `ThreadPoolExecutor` / `ScheduledExecutorService` |
 | Thymeleaf                | HTML + JavaScript estático                      |
 | Integración `custom-campus` en el manager | Consulta al indexador (OpenSearch) cada 60 s |
+| Paquetes `dto` y `repository` | No se usan: los servlets arman el JSON y los servicios hacen el JDBC |
 
 Wazuh es institucional: no se le hace ningún cambio (usuarios, permisos ni integraciones). Por eso las alertas se **consultan** al indexador en lugar de recibirse con `custom-campus`, y solo se usan credenciales que ya existen.
 
@@ -21,12 +22,12 @@ Wazuh es institucional: no se le hace ningún cambio (usuarios, permisos ni inte
 
 - Java 21, NetBeans y Tomcat 11 registrado en NetBeans
 - Acceso de lectura a Wazuh: API (puerto 55000) e indexador (puerto 9200)
-- OpenLDAP de laboratorio
+- OpenLDAP de laboratorio: `brew install openldap` (macOS)
 
 ## Cómo correrlo
 
 1. **Abrir el proyecto** en NetBeans (File → Open Project → carpeta `CodigoAbierto`). Si pide servidor, elegir Tomcat 11.
-2. **Conseguir las credenciales de Wazuh** que ya existan (no crear usuarios en Wazuh): una para la API (puerto 55000) y otra para el indexador (puerto 9200). El usuario del dashboard es del indexador.
+2. **Conseguir las credenciales de Wazuh** que ya existan (no crear usuarios en Wazuh). Si las de la API también sirven en el indexador (puerto 9200), basta con ellas.
 3. **Crear la configuración** (no se sube a GitHub):
 
    ```bash
@@ -35,23 +36,33 @@ Wazuh es institucional: no se le hace ningún cambio (usuarios, permisos ni inte
    ```
 
    Editar `~/CampusSeguro/campus.properties` con las URL, usuario, contraseña y la clave de `POST /api/alertas`. Las variables de entorno con el mismo nombre tienen prioridad.
-4. **Ejecutar**: clic derecho en el proyecto → Run. Se abre http://localhost:8080/CampusSeguro. La configuración solo se lee al arrancar: si se cambia, volver a ejecutar.
-5. **Comprobar** en el navegador:
+4. **Levantar el LDAP de laboratorio** (cada vez que se reinicie la máquina): `./ldap/iniciar.sh`. Queda en `ldap://localhost:3890` con los usuarios ficticios de `ldap/usuarios.ldif`: `ana` y `marta` (ENCONTRADO), `luis` repetido en dos unidades (IDENTIDAD_AMBIGUA); cualquier otro da NO_ENCONTRADO.
+5. **Ejecutar**: clic derecho en el proyecto → Run. Se abre http://localhost:8080/CampusSeguro. La configuración solo se lee al arrancar: si se cambia, volver a ejecutar.
+6. **Comprobar** en el navegador:
    - `/api/estado`: la base responde (crea `~/CampusSeguro/campusseguro.mv.db`).
    - `/api/edificios`: los tres edificios.
    - `/api/agentes`: los agentes de Wazuh (aparecen tras la primera sincronización, unos segundos; `desactualizado: true` indica que Wazuh no respondió).
-   - `/api/alertas`: las alertas guardadas (`origen` REAL, del indexador; o SIMULADO, enviadas por POST).
-6. **Asignar edificios** a los agentes (ver Endpoints).
+   - `/api/alertas`: las alertas guardadas (`origen` REAL, del indexador; o SIMULADO, enviadas por POST), con su edificio y resultado LDAP.
+7. **Asignar edificios** a los agentes (ver Endpoints).
 
-Sin `WAZUH_API_URL` o sin `OPENSEARCH_URL`, `OPENSEARCH_USER` y `OPENSEARCH_PASSWORD`, la app arranca, pero no sincroniza agentes o alertas (se avisa en la consola de Tomcat).
+Sin `WAZUH_API_URL` u `OPENSEARCH_URL` la app arranca, pero no sincroniza agentes o alertas; sin `LDAP_URL` las alertas quedan con `ERROR_LDAP` (se avisa en la consola de Tomcat).
 
 Enviar una alerta simulada:
 
 ```bash
 curl -X POST http://localhost:8080/CampusSeguro/api/alertas \
   -H "X-API-Key: LA_CLAVE" \
-  -d '{"id":"s1","manager":{"name":"wazuh"},"agent":{"id":"001"},"rule":{"id":"5710","level":5,"description":"Prueba"},"data":{"srcuser":"ana"}}'
+  -d '{"id":"s1","manager":{"name":"wazuh"},"agent":{"id":"001"},"rule":{"id":"5710","level":5,"description":"Prueba"},"data":{"srcuser":"CAMPUS\\ana"}}'
 ```
+
+### Cómo se procesa una alerta
+
+1. `AlertSyncJob` (cada 60 s) o `POST /api/alertas` la guardan como `PENDIENTE` (si ya existía, no se duplica).
+2. Se manda a `AlertProcessingService`: 2 hilos y una cola de 100. Si la cola está llena, sigue `PENDIENTE`.
+3. Cada hilo copia a la alerta el edificio del agente (sin asignación: *Sin edificio*), busca el usuario en LDAP y la marca `PROCESADA`.
+4. Al arrancar y cada 60 s se vuelven a encolar las `PENDIENTE` (reinicios o cola llena).
+
+LDAP (`LdapUserService`, JNDI): busca por `uid` con filtro escapado (`(uid={0})`), lee `uid`, `cn`, `mail` y `departmentNumber`, con tiempo límite de 5 s. Única normalización: `DOMINIO\usuario` → `usuario`. Resultados: `ENCONTRADO`, `NO_ENCONTRADO`, `SIN_USUARIO`, `ERROR_LDAP`, `IDENTIDAD_AMBIGUA`. Si LDAP falla, la alerta se muestra igual. La cuenta de la alerta no es la responsable confirmada del evento.
 
 ### Pruebas
 
@@ -71,7 +82,7 @@ Clic derecho en el proyecto → Test (JUnit).
 | GET    | `/api/edificios`  | Edificios                                 |
 | GET    | `/api/agentes`    | Agentes, estado, edificio y si están desactualizados |
 | PUT    | `/api/agentes`    | Asignar edificio a un agente              |
-| GET    | `/api/alertas`    | Alertas guardadas                         |
+| GET    | `/api/alertas`    | Alertas guardadas, con edificio y resultado LDAP |
 | POST   | `/api/alertas`    | Guardar una alerta **simulada** (cabecera `X-API-Key`, máx. 100 KB) |
 
 Asignar el agente `001` a Laboratorios (1 Biblioteca, 2 Laboratorios, 3 Administración):
@@ -90,14 +101,14 @@ Sin `edificio` el agente queda *Sin edificio*. La sincronización con Wazuh (cad
 - [x] 4. `/api/alertas`: `POST` (clave, deduplicación, PENDIENTE, 202) y `GET`.
 - [x] 5. En lugar de `custom-campus`: `AlertSyncJob` consulta el indexador cada 60 s.
 - [x] 5b. Ajustes a los pasos 4 y 5.
-- [ ] 6. Procesamiento con hilos (2 hilos, cola de 100): asignar edificio, marcar procesada y recuperar pendientes.
-- [ ] 7. LDAP por JNDI con un OpenLDAP local de laboratorio (LDIF con 3 usuarios) y sus resultados (ENCONTRADO, NO_ENCONTRADO, etc.).
+- [x] 6. Procesamiento con hilos (2 hilos, cola de 100): asignar edificio, marcar procesada y recuperar pendientes.
+- [x] 7. LDAP por JNDI con un OpenLDAP local de laboratorio (LDIF con 3 usuarios) y sus resultados (ENCONTRADO, NO_ENCONTRADO, etc.).
 - [ ] 8. Dashboard: mapa Leaflet con GeoJSON, tabla de alertas (con paginación y filtros) y alertas simuladas.
 - [ ] 9. Gráficas PNG: alertas por edificio y por hora.
 - [ ] 10. Pruebas de aceptación e instrucciones de instalación.
 
 ### Por verificar con datos reales
 
-- Que el grupo `authentication_failed` aparezca en `rule.groups` de las alertas del indexador (si no, cambiar `ALERTAS_GRUPO`).
+- ~~Que el grupo `authentication_failed` aparezca en `rule.groups`~~: verificado con una consulta directa al indexador (hay alertas con ese grupo); falta ver una llegar a la app.
 - Qué campo trae el usuario (`data.srcuser`, `data.dstuser` o `data.win.eventdata.targetUserName`); se ajusta en `AlertService.CAMPOS_USUARIO`.
 - Si la app está apagada más de 5 minutos, las alertas de ese lapso no se recuperan (la consulta mira solo los últimos 5 min).

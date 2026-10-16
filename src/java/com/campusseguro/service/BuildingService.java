@@ -72,6 +72,20 @@ public class BuildingService {
         }
     }
 
+    // Edificio asignado a un agente; null si no tiene o el agente no existe
+    public static Integer edificioDeAgente(String idWazuh) throws SQLException {
+        if (idWazuh == null) {
+            return null;
+        }
+        try (Connection con = BaseDatos.conectar();
+             PreparedStatement ps = con.prepareStatement("SELECT edificio_id FROM agente WHERE id_wazuh = ?")) {
+            ps.setString(1, idWazuh);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? (Integer) rs.getObject("edificio_id") : null;
+            }
+        }
+    }
+
     // Asigna un edificio a un agente (null lo deja "Sin edificio").
     // Devuelve false si el agente no existe.
     public static boolean asignarEdificio(String idWazuh, Integer edificioId) throws SQLException {

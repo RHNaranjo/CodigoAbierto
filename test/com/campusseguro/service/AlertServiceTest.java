@@ -7,7 +7,6 @@ import java.io.File;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -43,7 +42,7 @@ public class AlertServiceTest {
                 + "\"rule\":{\"id\":\"5710\",\"level\":5,\"description\":\"Fallo de login\"},"
                 + "\"data\":{\"srcuser\":\"ana\"}}}");
 
-        assertTrue(AlertService.guardarAlerta(hit, "REAL"));
+        assertNotNull(AlertService.guardarAlerta(hit, "REAL"));
 
         try (Connection con = BaseDatos.conectar()) {
             ResultSet rs = primeraFila(con);
@@ -61,8 +60,8 @@ public class AlertServiceTest {
     public void alertaRepetidaNoSeDuplica() throws Exception {
         JsonObject a = alerta("{\"id\":\"2.2\",\"manager\":{\"name\":\"wazuh\"}}");
 
-        assertTrue(AlertService.guardarAlerta(a, "SIMULADO"));
-        assertFalse(AlertService.guardarAlerta(a, "SIMULADO"));
+        assertNotNull(AlertService.guardarAlerta(a, "SIMULADO"));
+        assertNull(AlertService.guardarAlerta(a, "SIMULADO"));
 
         try (Connection con = BaseDatos.conectar()) {
             ResultSet rs = con.createStatement().executeQuery("SELECT COUNT(*) FROM alerta");

@@ -1,0 +1,45 @@
+# Directorio de laboratorio: usuarios ficticios, sin contraseñas.
+dn: dc=campus,dc=local
+objectClass: dcObject
+objectClass: organization
+dc: campus
+o: Campus de laboratorio
+
+dn: ou=usuarios,dc=campus,dc=local
+objectClass: organizationalUnit
+ou: usuarios
+
+dn: uid=ana,ou=usuarios,dc=campus,dc=local
+objectClass: inetOrgPerson
+uid: ana
+cn: Ana López
+sn: López
+mail: ana@campus.local
+departmentNumber: Biblioteca
+
+dn: uid=luis,ou=usuarios,dc=campus,dc=local
+objectClass: inetOrgPerson
+uid: luis
+cn: Luis Pérez
+sn: Pérez
+mail: luis@campus.local
+departmentNumber: Laboratorios
+
+dn: uid=marta,ou=usuarios,dc=campus,dc=local
+objectClass: inetOrgPerson
+uid: marta
+cn: Marta Ruiz
+sn: Ruiz
+mail: marta@campus.local
+
+# Segundo "luis" en otra unidad: sirve para probar IDENTIDAD_AMBIGUA
+dn: ou=externos,ou=usuarios,dc=campus,dc=local
+objectClass: organizationalUnit
+ou: externos
+
+dn: uid=luis,ou=externos,ou=usuarios,dc=campus,dc=local
+objectClass: inetOrgPerson
+uid: luis
+cn: Luis Pérez (externo)
+sn: Pérez
+mail: luis.externo@campus.local
