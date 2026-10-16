@@ -1,0 +1,95 @@
+#!/bin/sh
+# Simula alertas para la demo: las manda a la app que corre con ./start y el
+# dashboard (con modo demostración) las va mostrando. Dura unos 2 minutos.
+#   ./simular                 lista los equipos activos de Wazuh para elegir
+#   ./simular 015 018 027     corre la simulación con esos equipos
+#                             (Biblioteca, Laboratorios, Administración)
+#   PAUSA=20 ./simular ...    segundos entre fases (15 por defecto: lo que tarda el dashboard en refrescar)
+# Elegir equipos con nombres neutros: sus nombres salen en el dashboard.
+URL=http://localhost:8080/CampusSeguro
+PAUSA=${PAUSA:-15}
+CLAVE=$(grep '^CAMPUS_ALERTAS_API_KEY=' "$HOME/CampusSeguro/campus.properties" | cut -d= -f2-)
+
+if ! curl -s -o /dev/null "$URL/api/estado"; then
+    echo "La app no responde en $URL. Correr ./start primero."
+    exit 1
+fi
+
+# Sin argumentos: solo listar los equipos activos
+if [ $# -lt 3 ]; then
+    echo "Equipos activos (elegir 3 con nombre neutro):"
+    curl -s "$URL/api/agentes" \
+        | grep -o '"idWazuh":"[0-9]*","nombre":"[^"]*","estado":"active"' \
+        | grep -v '"idWazuh":"000"' \
+        | sed 's/"idWazuh":"\([0-9]*\)","nombre":"\([^"]*\)".*/  \1  \2/'
+    echo
+    echo "Uso: ./simular ID_BIBLIOTECA ID_LABORATORIOS ID_ADMINISTRACION"
+    exit 0
+fi
+BIBLIOTECA=$1
+LABS=$2
+ADMIN=$3
+curl -s -o /dev/null -X PUT "$URL/api/agentes?id=$BIBLIOTECA&edificio=1"
+curl -s -o /dev/null -X PUT "$URL/api/agentes?id=$LABS&edificio=2"
+curl -s -o /dev/null -X PUT "$URL/api/agentes?id=$ADMIN&edificio=3"
+
+# Cada ejecución usa ids nuevos, así se puede repetir sin que cuenten como reenvíos
+EJEC=$(date +%s)
+N=0
+ID=""
+
+# enviar AGENTE NIVEL DESCRIPCION [USUARIO]
+enviar() {
+    N=$((N + 1))
+    ahora=$(date -u +%Y-%m-%dT%H:%M:%S.000+0000)
+    data=""
+    [ -n "$4" ] && data=',"data":{"srcuser":"'"$4"'"}'
+    curl -s -o /dev/null -X POST "$URL/api/alertas" -H "X-API-Key: $CLAVE" \
+        -d '{"id":"'"${ID:-sim-$EJEC-$N}"'","timestamp":"'"$ahora"'","manager":{"name":"wazuh"},"agent":{"id":"'"$1"'"},"rule":{"id":"5710","level":'"$2"',"description":"'"$3"'"}'"$data"'}'
+}
+
+fase() {
+    echo
+    echo "==> $1"
+}
+
+espera() {
+    echo "    (esperando $PAUSA s)"
+    sleep "$PAUSA"
+}
+
+fase "1/6 Biblioteca: 2 alertas (el mapa pasa a dorado)"
+enviar "$BIBLIOTECA" 5 "sshd: intento con usuario inexistente" ana
+sleep 3
+enviar "$BIBLIOTECA" 5 "PAM: fallo de autenticacion" marta
+espera
+
+fase "2/6 Laboratorios: 6 alertas (cruza las 5: pasa a guinda)"
+for usuario in luis luis ana marta pedro ana; do
+    enviar "$LABS" 10 "sshd: multiples fallos de autenticacion" "$usuario"
+    sleep 2
+done
+espera
+
+fase "3/6 Administracion: 1 alerta, con la cuenta escrita con dominio (CAMPUS y usuario)"
+enviar "$ADMIN" 5 "Windows: fallo de inicio de sesion" "CAMPUS\\\\ana"
+espera
+
+fase "4/6 Alerta sin cuenta de usuario"
+enviar "$ADMIN" 5 "Fallo de autenticacion sin usuario"
+espera
+
+fase "5/6 La misma alerta enviada dos veces: solo cuenta una"
+ID="sim-$EJEC-repetida"
+enviar "$BIBLIOTECA" 5 "PAM: fallo de autenticacion" marta
+sleep 2
+enviar "$BIBLIOTECA" 5 "PAM: fallo de autenticacion" marta
+ID=""
+espera
+
+fase "6/6 Lote de 20 alertas de golpe (2 hilos las procesan)"
+for i in $(seq 1 20); do
+    enviar "$ADMIN" 10 "Lote: fallo de autenticacion" marta
+done
+echo
+echo "Simulacion terminada."

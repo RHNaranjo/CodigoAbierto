@@ -46,7 +46,7 @@ Wazuh es institucional: no se le hace ningún cambio (usuarios, permisos ni inte
    - `/api/alertas`: las alertas guardadas (`origen` REAL, del indexador; o SIMULADO, enviadas por POST), con su edificio y resultado LDAP.
 7. **Asignar edificios** a los agentes (ver Endpoints).
 
-**Sin NetBeans:** `./start` levanta el LDAP, compila y arranca un Tomcat propio en `~/CampusSeguro/tomcat` (http://localhost:8080/CampusSeguro); `./stop` detiene todo. No correr al mismo tiempo que el Tomcat de NetBeans (mismo puerto y misma base). Para una demostración guiada, ver [DEMO.md](DEMO.md).
+**Sin NetBeans:** `./start` levanta el LDAP, compila y arranca un Tomcat propio en `~/CampusSeguro/tomcat` (http://localhost:8080/CampusSeguro); `./stop` detiene todo. No correr al mismo tiempo que el Tomcat de NetBeans (mismo puerto y misma base). `./simular` manda alertas simuladas para ver el dashboard cambiar en vivo. Guion de presentación en [DEMO.md](DEMO.md).
 
 Sin `WAZUH_API_URL` u `OPENSEARCH_URL` la app arranca, pero no sincroniza agentes o alertas; sin `LDAP_URL` las alertas quedan con `ERROR_LDAP` (se avisa en la consola de Tomcat).
 
