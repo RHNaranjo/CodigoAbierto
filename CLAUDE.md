@@ -8,6 +8,7 @@ Proyecto unificador de Código Abierto. Instrucciones en `CampusSeguro.md`; avan
 - Imitar el estilo de los proyectos en `~/NetBeansProjects` (ProcesaEventos, LDAP, Hilos, Graficas, etc.) y usarlos como base.
 - README, comentarios y documentación: concisos, en español.
 - Credenciales siempre por variables de entorno, nunca en el repositorio.
+- Wazuh es institucional: no se le puede hacer ningún cambio (usuarios, permisos, integraciones, `ossec.conf`). Solo se consulta con las credenciales que ya existen.
 
 ## Estructura
 

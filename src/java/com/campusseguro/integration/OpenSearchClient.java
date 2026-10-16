@@ -1,6 +1,7 @@
 package com.campusseguro.integration;
 
 import com.campusseguro.config.Config;
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -14,20 +15,29 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 
+/**
+ * Consulta al indexador de Wazuh (OpenSearch) las alertas de fallos de
+ * autenticación. Solo lectura: no se modifica nada en Wazuh.
+ */
 public class OpenSearchClient {
 
     private static final Duration TIEMPO_LIMITE = Duration.ofSeconds(20);
     private static final int TAMANO_PAGINA = 500;
+    private static final int MAXIMO_REGISTROS = 10000; // límite habitual de OpenSearch
 
     private final String url;
-    private final String usuario;
-    private final String password;
+    private final String credenciales;
+    private final String grupo;
     private final HttpClient cliente;
 
     public OpenSearchClient(String url, String usuario, String password) {
         this.url = url.replaceAll("/+$", "");
-        this.usuario = usuario;
-        this.password = password;
+        this.credenciales = Base64.getEncoder()
+                .encodeToString((usuario + ":" + password).getBytes(StandardCharsets.UTF_8));
+
+        // Grupo de reglas a consultar; se puede cambiar en campus.properties
+        String g = Config.get("ALERTAS_GRUPO");
+        this.grupo = (g == null || g.isBlank()) ? "authentication_failed" : g;
 
         this.cliente = HttpClient.newBuilder()
                 .sslContext(TrustAllSSLSocketFactory.contexto())
@@ -35,118 +45,46 @@ public class OpenSearchClient {
                 .build();
     }
 
-    /**
-     * Consulta las alertas de los últimos cinco minutos.
-   
-     */
-    public JsonArray consultarAlertasRecientes()
-            throws IOException, InterruptedException {
-
-        Instant ahora = Instant.now();
-        Instant desde = ahora.minus(Duration.ofMinutes(5));
+    // Alertas del grupo en los últimos cinco minutos, de 500 en 500
+    public JsonArray consultarAlertasRecientes() throws IOException, InterruptedException {
+        String hasta = Instant.now().toString();
+        String desde = Instant.now().minus(Duration.ofMinutes(5)).toString();
 
         JsonArray alertas = new JsonArray();
-        int desdeRegistro = 0;
 
-        while (true) {
-            JsonObject consulta = new JsonObject();
-            consulta.addProperty("size", TAMANO_PAGINA);
-            consulta.addProperty("from", desdeRegistro);
+        while (alertas.size() < MAXIMO_REGISTROS) {
+            String consulta = """
+                {"size": %d, "from": %d,
+                 "sort": [{"timestamp": "asc"}],
+                 "_source": ["timestamp", "id", "manager.name", "agent.id",
+                             "rule.id", "rule.description", "rule.level",
+                             "data.srcuser", "data.dstuser", "data.win.eventdata.targetUserName"],
+                 "query": {"bool": {"filter": [
+                     {"term": {"rule.groups": %s}},
+                     {"range": {"timestamp": {"gte": "%s", "lte": "%s"}}}]}}}
+                """.formatted(TAMANO_PAGINA, alertas.size(), new Gson().toJson(grupo), desde, hasta);
 
-            JsonObject rango = new JsonObject();
-            rango.addProperty("gte", desde.toString());
-            rango.addProperty("lte", ahora.toString());
-
-            JsonObject timestamp = new JsonObject();
-            timestamp.add("range", new JsonObject());
-            timestamp.getAsJsonObject("range").add("timestamp", rango);
-
-            JsonObject query = new JsonObject();
-            query.add("bool", new JsonObject());
-            query.getAsJsonObject("bool").add("filter", new JsonArray());
-            query.getAsJsonObject("bool").getAsJsonArray("filter").add(timestamp);
-
-            consulta.add("query", query);
-
-            JsonArray orden = new JsonArray();
-            JsonObject criterioOrden = new JsonObject();
-            JsonObject configuracionOrden = new JsonObject();
-            configuracionOrden.addProperty("order", "asc");
-            criterioOrden.add("timestamp", configuracionOrden);
-            orden.add(criterioOrden);
-            consulta.add("sort", orden);
-
-            JsonArray campos = new JsonArray();
-            campos.add("timestamp");
-            campos.add("@timestamp");
-            campos.add("id");
-            campos.add("manager.name");
-            campos.add("agent.id");
-            campos.add("rule.id");
-            campos.add("rule.description");
-            campos.add("rule.level");
-            consulta.add("_source", campos);
-
-            HttpRequest peticion = HttpRequest.newBuilder()
-                    .uri(URI.create(url + "/wazuh-alerts-*/_search"))
-                    .timeout(TIEMPO_LIMITE)
-                    .header("Authorization", "Basic " + credenciales())
+            HttpRequest peticion = HttpRequest.newBuilder(URI.create(url + "/wazuh-alerts-*/_search"))
+                    .header("Authorization", "Basic " + credenciales)
                     .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(
-                            consulta.toString(), StandardCharsets.UTF_8))
+                    .timeout(TIEMPO_LIMITE)
+                    .POST(HttpRequest.BodyPublishers.ofString(consulta, StandardCharsets.UTF_8))
                     .build();
 
-            HttpResponse<String> respuesta = cliente.send(
-                    peticion,
+            HttpResponse<String> respuesta = cliente.send(peticion,
                     HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-
             if (respuesta.statusCode() != 200) {
-                throw new IOException(
-                        "Error consultando OpenSearch (HTTP "
-                        + respuesta.statusCode() + ")");
+                throw new IOException("Error consultando OpenSearch (HTTP " + respuesta.statusCode() + ")");
             }
 
-            JsonObject resultado = JsonParser.parseString(
-                    respuesta.body()).getAsJsonObject();
-
-            JsonArray hits = resultado
-                    .getAsJsonObject("hits")
-                    .getAsJsonArray("hits");
-
-            for (int i = 0; i < hits.size(); i++) {
-                alertas.add(hits.get(i));
-            }
+            JsonObject resultado = JsonParser.parseString(respuesta.body()).getAsJsonObject();
+            JsonArray hits = resultado.getAsJsonObject("hits").getAsJsonArray("hits");
+            alertas.addAll(hits);
 
             if (hits.size() < TAMANO_PAGINA) {
                 break;
             }
-
-            desdeRegistro += hits.size();
-
-            // Evita exceder el límite habitual de resultados de OpenSearch.
-            if (desdeRegistro >= 10000) {
-                break;
-            }
         }
-
         return alertas;
-    }
-
-    private String credenciales() {
-        String texto = usuario + ":" + password;
-
-        return Base64.getEncoder().encodeToString(
-                texto.getBytes(StandardCharsets.UTF_8));
-    }
-
-    /**
-     * Construye el cliente utilizando la configuración de CampusSeguro.
-     */
-    public static OpenSearchClient desdeConfiguracion() {
-        return new OpenSearchClient(
-                Config.get("OPENSEARCH_URL"),
-                Config.get("WAZUH_API_USER"),
-                Config.get("WAZUH_API_PASSWORD")
-        );
     }
 }

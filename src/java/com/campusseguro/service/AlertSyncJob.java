@@ -31,15 +31,15 @@ public class AlertSyncJob {
         }
 
         String url = Config.get("OPENSEARCH_URL");
-        String usuario = Config.get("WAZUH_API_USER");
-        String password = Config.get("WAZUH_API_PASSWORD");
+        String usuario = Config.get("OPENSEARCH_USER");
+        String password = Config.get("OPENSEARCH_PASSWORD");
 
         if (url == null || url.isBlank()
                 || usuario == null || usuario.isBlank()
                 || password == null || password.isBlank()) {
 
             LOGGER.warning(
-                    "Falta configurar OpenSearch. "
+                    "Falta configurar OPENSEARCH_URL, OPENSEARCH_USER u OPENSEARCH_PASSWORD. "
                     + "No se sincronizarán las alertas.");
             return;
         }
@@ -82,7 +82,7 @@ public class AlertSyncJob {
                 JsonObject alerta = alertas.get(i).getAsJsonObject();
 
                 try {
-                    boolean insertada = AlertService.guardarAlerta(alerta);
+                    boolean insertada = AlertService.guardarAlerta(alerta, "REAL");
 
                     if (insertada) {
                         nuevas++;

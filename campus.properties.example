@@ -2,7 +2,19 @@
 # Ese archivo no se sube a GitHub. Las variables de entorno con el mismo
 # nombre tienen prioridad sobre este archivo.
 
-# API del manager de Wazuh (puerto 55000, no el dashboard)
+# API del manager de Wazuh (puerto 55000): sincronización de agentes
 WAZUH_API_URL=https://SERVIDOR_WAZUH:55000
 WAZUH_API_USER=usuario_de_consulta
 WAZUH_API_PASSWORD=secreto
+
+# Indexador de Wazuh (puerto 9200): consulta de alertas.
+# El usuario del dashboard es un usuario del indexador.
+OPENSEARCH_URL=https://SERVIDOR_WAZUH:9200
+OPENSEARCH_USER=usuario_del_indexador
+OPENSEARCH_PASSWORD=secreto
+
+# Grupo de reglas a consultar (opcional; por defecto authentication_failed)
+#ALERTAS_GRUPO=authentication_failed
+
+# Clave para POST /api/alertas (cabecera X-API-Key)
+CAMPUS_ALERTAS_API_KEY=secreto_de_alertas
