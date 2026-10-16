@@ -31,8 +31,8 @@ public class AlertSyncJob {
         }
 
         String url = Config.get("OPENSEARCH_URL");
-        String usuario = Config.get("OPENSEARCH_USER");
-        String password = Config.get("OPENSEARCH_PASSWORD");
+        String usuario = Config.get("WAZUH_API_USER");
+        String password = Config.get("WAZUH_API_PASSWORD");
 
         if (url == null || url.isBlank()
                 || usuario == null || usuario.isBlank()
